@@ -1,0 +1,240 @@
+from curses import window
+from glob import glob
+import os,sys
+from turtle import Screen
+from black import main
+import pygame
+from pygame.locals import *
+import random
+
+###
+windows_length=0
+windows_height=0
+map=[]
+if_eaten=[]
+direction_x=[1,0,-1,0]
+direction_y=[0,1,0,-1]
+
+
+###
+# block:40*40
+# map: 10*10
+# screen:960*640
+score=1
+block_size=40
+map_size=16
+apple_image=pygame.image.load('./pic/apple.jpg')
+block_image=pygame.image.load('./pic/block.jpg')
+pacman_image_right=pygame.image.load('./pic/pacman_right.png')
+pacman_image_left=pygame.image.load('./pic/pacman_left.png')
+pacman_image_north=pygame.image.load('./pic/pacman_north.png')
+pacman_image_south=pygame.image.load('./pic/pacman_south.png')
+pacman_orient=0
+ghost_image=pygame.image.load('./pic/ghost.png')
+
+def initsize():
+    global main_screen
+    global windows_length,windows_height
+    global font16,font32,font_height
+    global pacman_x,pacman_y,scores
+    global ghost_x,ghost_y,ghost_num
+    pygame.init()
+    windows_length=block_size*map_size
+    windows_height=block_size*map_size
+    main_screen=pygame.display.set_mode((windows_length+320,windows_height))
+    font16=pygame.font.SysFont("arial",16)
+    font32=pygame.font.SysFont("arial",32)
+    font_height=font16.get_linesize()
+    
+    scores=0
+    pacman_x=pacman_y=0
+    ghost_num=3
+    ghost_x=[15,0,15]
+    ghost_y=[0,15,15]
+    
+def setbutton():
+    global score_text,textRect
+    global restart_button,restartRect
+    #Text Scores:
+    score_text=font32.render("Scores:"+str(scores),True,(255,255,255),(0,0,0))
+    textRect=score_text.get_rect()
+    textRect.center=(800,80)
+    #Restart Button
+    restart_button=font32.render("Restart",True,(255,255,255),(255,0,0))
+    restartRect=restart_button.get_rect()
+    restartRect.center=(800,320)
+    #add Ghost
+    ghostone_button=font32
+   
+def ghostpanel():
+    for i in range(ghost_num):
+        temp_flag=1
+        for j in range(4):
+            if ghostmap_valid(ghost_x[i]+direction_x[j],ghost_y[i]+direction_y[j])==True:
+                temp_flag=0
+        if temp_flag==1:
+            return None
+        while True:
+            temp_randint=random.randint(0,3)
+            if ghostmap_valid(ghost_x[i]+direction_x[temp_randint],ghost_y[i]+direction_y[temp_randint])==True:
+                ghost_x[i]+=direction_x[temp_randint]
+                ghost_y[i]+=direction_y[temp_randint]
+                break
+    return None
+            
+            
+        
+ 
+def input_file():
+    global map_input,map,if_eaten
+    map_input=open("./map.txt",'r')
+    i=0
+    map=[]
+    if_eaten=[]
+    for lines in map_input.readlines():
+        i+=1
+        map.append([])
+        if_eaten.append([])
+        mapline=lines.split(" ")
+        for words in mapline:  
+            map[i-1].append(int(words))
+            if_eaten[i-1].append(0)
+    print(i)
+    # print(map)
+    map_input.close()
+
+def pacmanmap_valid(mapx,mapy):
+    if mapx>=0 and mapx<map_size and mapy>=0 and mapy<map_size:
+        if map[mapx][mapy]==0:
+            return True
+        else:
+            return False
+    else:
+        return False
+
+def ghostmap_valid(mapx,mapy):
+    for i in range(ghost_num):
+        if ghost_x[i]==mapx and ghost_y[i]==mapy:
+            return False
+    if mapx>=0 and mapx<map_size and mapy>=0 and mapy<map_size:
+        if map[mapx][mapy]==0:
+            return True
+        else:
+            return False
+    else:
+        return False
+
+def if_dead(mapx,mapy):
+    for j in range(ghost_num):
+        if mapx==ghost_x[j] and mapy==ghost_y[j]:
+            return True
+    return False    
+    
+def repainting(pacman_direction,if_first=0):
+    main_screen.fill((0,0,0))
+    if True:
+        for i in range(map_size):
+            for j in range(map_size):
+                if map[i][j]==1:
+                    main_screen.blit(block_image,(i*40,j*40,40,40))
+                elif if_eaten[i][j]==0:
+                    main_screen.blit(apple_image,(i*40,j*40,i*40+40,j*40+40))
+    
+    if pacman_direction==0:
+        main_screen.blit(pacman_image_north,(pacman_x*block_size,pacman_y*block_size))
+    if pacman_direction==1:
+        main_screen.blit(pacman_image_south,(pacman_x*block_size,pacman_y*block_size))
+    if pacman_direction==2:
+        main_screen.blit(pacman_image_left,(pacman_x*block_size,pacman_y*block_size))
+    if pacman_direction==3:
+        main_screen.blit(pacman_image_right,(pacman_x*block_size,pacman_y*block_size))
+    # ghostpanel()
+    for i in range(ghost_num):
+        main_screen.blit(ghost_image,(ghost_x[i]*block_size,ghost_y[i]*block_size))
+    
+    for i in range(map_size-1):
+        pygame.draw.line(main_screen,(255,255,255),(40*(i+1),0),(40*(i+1),windows_height),width=1)
+        pygame.draw.line(main_screen,(255,255,255),(0,40*(i+1)),(windows_length,40*(i+1)),width=1)
+    pygame.draw.line(main_screen,(255,255,255),(640,0),(640,640),width=1)
+    score_text=font32.render("Scores:"+str(scores),True,(255,255,255),(0,0,0))
+    main_screen.blit(score_text, textRect)
+    main_screen.blit(restart_button,restartRect)
+    pygame.draw.line(main_screen,(255,255,255),(750,290),(850,290))
+    pygame.draw.line(main_screen,(255,255,255),(750,350),(850,350))
+    pygame.draw.line(main_screen,(255,255,255),(750,290),(750,350))
+    pygame.draw.line(main_screen,(255,255,255),(850,290),(850,350))
+    
+    
+def restart():
+    global if_eaten
+    global pygame_event_text
+    initsize()
+    input_file()
+    if_eaten[pacman_x][pacman_y]=1
+    repainting(3,1)
+    pygame_event_text=[]
+    pygame.event.set_blocked(MOUSEMOTION)
+    
+# restart()
+initsize()
+setbutton()
+input_file()
+if_eaten[pacman_x][pacman_y]=1
+repainting(3,1)
+pygame_event_text=[]
+pygame.event.set_blocked(MOUSEMOTION)
+
+
+while True:
+    
+    now_event=pygame.event.get()
+    if len(now_event)>0:
+        # print(len(now_event))
+        for every_event in now_event:
+            # print(str(every_event))
+            if every_event.type==QUIT:
+                exit()
+            if every_event.type==KEYDOWN:
+                if every_event.key==K_w:
+                    if pacmanmap_valid(pacman_x,pacman_y-1)==True:
+                        pacman_y=max(0,pacman_y-1)
+                    pacman_orient=0
+                elif every_event.key==K_s:
+                    if pacmanmap_valid(pacman_x,pacman_y+1)==True:
+                        pacman_y=min(map_size-1,pacman_y+1)
+                    pacman_orient=1
+                elif every_event.key==K_a:
+                    if pacmanmap_valid(pacman_x-1,pacman_y)==True:
+                        pacman_x=max(0,pacman_x-1)
+                    pacman_orient=2
+                elif every_event.key==K_d:
+                    if pacmanmap_valid(pacman_x+1,pacman_y)==True:
+                        pacman_x=min(map_size-1,pacman_x+1)
+                    pacman_orient=3
+                if if_dead(pacman_x,pacman_y)==True:
+                    print("You died!")
+                    restart()
+                ghostpanel()
+                if if_dead(pacman_x,pacman_y)==True:
+                    print("You died!")
+                    restart()
+                if if_eaten[pacman_x][pacman_y]==0:
+                    if_eaten[pacman_x][pacman_y]=1
+                    scores+=1       
+                    # print(score)             
+                repainting(pacman_orient,0)
+            if every_event.type==MOUSEBUTTONDOWN:
+                temp_mousepos=pygame.mouse.get_pos()
+                #restart button
+                if 750<=temp_mousepos[0]<=850 and 290<=temp_mousepos[1]<=350:
+                    restart()
+                    # initsize()
+                    # setbutton()
+                    # input_file()
+                    # if_eaten[pacman_x][pacman_y]=1
+                    # repainting(3,1)
+                    # pygame_event_text=[]
+                    # pygame.event.set_blocked(MOUSEMOTION)
+                    # pass
+        
+    pygame.display.update()
